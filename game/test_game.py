@@ -21,7 +21,7 @@ class TestCore():
     def test_initialState(self) -> None:
         TILE_COUNT: int = 9
         game = core.GameInstance(tileCount = TILE_COUNT)
-        game.new()
+        game.start()
         assert game.running
         assert not game.finished
         assert len(game.tiles) == TILE_COUNT
@@ -29,7 +29,7 @@ class TestCore():
 
     def test_getMovesForRoll(self) -> None:
         game = core.GameInstance()
-        game.new()
+        game.start()
 
         MAX_ROLL: int = 12
         KNOWN_MAX_ROLL_COMBO_COUNT: int = 12
@@ -48,11 +48,11 @@ class TestCore():
     
     def test_firstMove(self) -> None:
         game = core.GameInstance()
-        assert game.new() != []
+        assert game.start() != []
 
     def test_fullGameTerminates(self) -> None:
         game = core.GameInstance()
-        moves = game.new()
+        moves = game.start()
 
         MAX_ITERATIONS: int = 20
         iteration: int = 0

@@ -24,6 +24,48 @@ class PlayerInterface(ABC):
         :rtype: list[int]
         """
 
+    def roundAsStr(self, game: GameInstance) -> str:
+        output = "\n"
+        output += self.tilesAsStr(game)
+        output += "\n\n"
+        output += self.diceAsStr(game)
+        return output
+    
+    def tilesAsStr(self, game: GameInstance) -> str:
+        tilePrintoutLines = ["", "", "", "", "" ]
+        for tileIndex, tileWasUsed in enumerate(game.tiles):
+            if not tileWasUsed:
+                tilePrintoutLines[0] += "+---+"
+                tilePrintoutLines[1] += "|   |"
+                tilePrintoutLines[2] += f"| {tileIndex + 1} |"
+                tilePrintoutLines[3] += "|   |"
+                tilePrintoutLines[4] += "+---+"
+            else:
+                tilePrintoutLines[0] += "     "
+                tilePrintoutLines[1] += "     "
+                tilePrintoutLines[2] += "     "
+                tilePrintoutLines[3] += "+---+"
+                tilePrintoutLines[4] += "+---+"
+
+        return "\n".join(tilePrintoutLines)
+    
+    def diceAsStr(self, game: GameInstance) -> str:
+        dieValue1, dieValue2 = game.lastRoll
+        dieTotal = dieValue1 + dieValue2
+        
+        output = "+---+ +---+\n"
+        output += f"| {dieValue1} | | {dieValue2} |  =  {dieTotal}\n"
+        output += "+---+ +---+\n\n"
+
+        output += "Possible moves:\n"
+        if (len(game.validMoves) > 0):
+            for moveIndex, move in enumerate(game.validMoves):
+                moveAsStr = ", ".join(str(value) for value in move)
+                output += f"  [{moveIndex}] {moveAsStr}\n"
+        else:
+            output += "  NONE\n"
+
+        return output
 
 
 # MAIN ENTRY.
