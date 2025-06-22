@@ -6,20 +6,24 @@
 
 
 # NATIVE IMPORTS.
+from abc import ABC, abstractmethod
 # THIRD-PARTY IMPORTS.
 # LOCAL IMPORTS.
-
-
-# CONSTANTS.
-
-
-# STRUCTS.
-
-
-# FUNCTIONS.
+from game.core import GameInstance
 
 
 # CLASSES.
+class PlayerInterface(ABC):
+    @abstractmethod
+    def select(self, game: GameInstance) -> list[int]:
+        """Given a specified game state, select a single move.
+
+        :param game: Current game state to pick a move from
+        :type game: list[bool]
+        :return: Selected move
+        :rtype: list[int]
+        """
+
 
 
 # MAIN ENTRY.

@@ -11,25 +11,16 @@ import itertools
 # LOCAL IMPORTS.
 
 
-# CONSTANTS.
-
-
-# STRUCTS.
-
-
-# FUNCTIONS.
-
-
 # CLASSES.
 class GameInstance():
     def __init__(self, tileCount: int = 9) -> None:
         self._isRunning: bool = False
         self._isFinished: bool = False
-        self._score: int = -1
         self._tileCount: int = tileCount
-        self._tileState: list[bool] = []
+        self._tiles: list[bool] = []
         self._rollHistory: list[int] = []
-        self._prevValidMoveList: list[list[int]] = []
+        self._lastRoll: tuple[int, int] = (-1, -1)
+        self._prevValidMoveList: list = []
 
     @property
     def running(self) -> bool:
@@ -43,18 +34,37 @@ class GameInstance():
     def rollCount(self) -> int:
         return len(self._rollHistory)
     
+    @property
+    def tiles(self) -> list[bool]:
+        return self._tiles
+    
+    @property
+    def lastRoll(self) -> tuple[int, int]:
+        return self._lastRoll
+    
+    @property
+    def validMoves(self) -> list[list[int]]:
+        if self._prevValidMoveList == []:
+            return []
+        else:
+            return self._prevValidMoveList[-1]
+        
+    @property
+    def score(self) -> int:
+        return sum(index + 1 for index, tileIsFlipped in enumerate(self.tiles) if not tileIsFlipped)
+    
     def new(self) -> list[list[int]]:
         # Set up the available tiles based on the configured tile count.
-        self._tileState = [ False ] * self._tileCount
+        self._tiles = [ False ] * self._tileCount
         self._isRunning = True
 
         # MAKE FIRST MOVE.
         # Handles only the 'roll' portion of a turn and returns result
         return self._makeRoll()
 
-    def remainingTiles(self) -> list[int]:
+    def tileValues(self) -> list[int]:
         tileList = []
-        for tileIndex, tileIsUsed in enumerate(self._tileState):
+        for tileIndex, tileIsUsed in enumerate(self._tiles):
             if not tileIsUsed:
                 tileList.append(tileIndex + 1)
 
@@ -79,36 +89,37 @@ class GameInstance():
         validMovesRemaining = (len(validMovesForRoll) > 0)
         
         if validMovesRemaining:
-            self._prevValidMoveList = validMovesForRoll
+            self._prevValidMoveList.append(validMovesForRoll)
             return validMovesForRoll
         
         else:
+            self._prevValidMoveList.append([])
             self._isFinished = True
-            self._score = sum(self.remainingTiles())
             return []
         
     def _flipTiles(self, move: list[int]) -> None:
-        if move not in self._prevValidMoveList:
+        if move not in self.validMoves:
             raise Exception(f"Move {move} not a possible move from previous roll {self._rollHistory[-1]}")
         
         for moveTile in move:
-            if self._tileState[moveTile - 1] == True:
+            if self._tiles[moveTile - 1] == True:
                 raise Exception(f"Cannot flip tile {moveTile} that has already been flipped!")
-            self._tileState[moveTile - 1] = True
+            self._tiles[moveTile - 1] = True
         
         # Check if the game is complete and flag if so.
-        gameIsComplete = all(self._tileState)
+        gameIsComplete = all(self._tiles)
         if gameIsComplete:
             self._isFinished = True
-            self._score = 0
         return
 
     def _roll(self) -> int:
-        return randint(1, 6) + randint(1, 6)
+        dice1, dice2 = randint(1, 6), randint(1, 6)
+        self._lastRoll = (dice1, dice2)
+        return dice1 + dice2
 
     def _getValidMovesForRoll(self, roll: int) -> list[list[int]]:
         # Get the current list of available tiles.
-        tileList = self.remainingTiles()
+        tileList = self.tileValues()
 
         # Remove any tiles from the list that are greater in value than the roll.
         tileList = [ tile for tile in tileList if tile <= roll ]

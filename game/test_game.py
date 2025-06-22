@@ -10,15 +10,6 @@
 import core
 
 
-# CONSTANTS.
-
-
-# STRUCTS.
-
-
-# FUNCTIONS.
-
-
 # CLASSES.
 class TestCore():
     def test_gameInit(self) -> None:
@@ -33,7 +24,7 @@ class TestCore():
         game.new()
         assert game.running
         assert not game.finished
-        assert len(game.remainingTiles()) == TILE_COUNT
+        assert len(game.tiles) == TILE_COUNT
         return
 
     def test_getMovesForRoll(self) -> None:
