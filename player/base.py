@@ -33,11 +33,11 @@ class PlayerInterface(ABC):
     
     def tilesAsStr(self, game: GameInstance) -> str:
         tilePrintoutLines = ["", "", "", "", "" ]
-        for tileIndex, tileWasUsed in enumerate(game.tiles):
-            if not tileWasUsed:
+        for tileValue in range(1, 10):
+            if tileValue in game.tiles:
                 tilePrintoutLines[0] += "+---+"
                 tilePrintoutLines[1] += "|   |"
-                tilePrintoutLines[2] += f"| {tileIndex + 1} |"
+                tilePrintoutLines[2] += f"| {tileValue} |"
                 tilePrintoutLines[3] += "|   |"
                 tilePrintoutLines[4] += "+---+"
             else:

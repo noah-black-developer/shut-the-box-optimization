@@ -16,14 +16,14 @@ import game.core as core
 
 # CONSTANTS.
 DEFAULT_ITERATIONS: int = 100000
-PLAYER_TYPES: list[str] = [
-    "manual",
-    "random",
-    "largest-first",
-    "largest-preserve-low",
-    "most-then-small",
-    "most-then-large"
-]
+PLAYER_TYPES: dict[str, Type[player.PlayerInterface]] = {
+    "manual":                player.ManualPlayer,
+    "random":                player.RandomPlayer,
+    "largest-first":         player.LargestFirstPlayer,
+    "largest-preserve-low":  player.LargePreserveLowPlayer,
+    "most-then-small":       player.MostThenSmall,
+    "most-then-large":       player.MostThenLarge,
+}
 
 
 # FUNCTIONS.
@@ -61,9 +61,8 @@ def selectPlayer(specifiedPlayer: str | None = None) -> Type[player.PlayerInterf
     # If given from function inputs, verify specified player.
     if specifiedPlayer != None:
         # Make sure that the given player matches an expected value.
-        if specifiedPlayer not in PLAYER_TYPES:
+        if specifiedPlayer not in PLAYER_TYPES.keys():
             raise Exception(f"Specified player name {specifiedPlayer} does not match valid options: {', '.join(PLAYER_TYPES)}")
-        selectedIndex = PLAYER_TYPES.index(specifiedPlayer)
 
     # Otherwise, prompt the user to select a player from the available options.
     else:
@@ -74,31 +73,19 @@ def selectPlayer(specifiedPlayer: str | None = None) -> Type[player.PlayerInterf
         print()
 
         validIndicesAsStr = [ str(index) for index in range(0, len(PLAYER_TYPES)) ]
-        selectedIndex = -1
         while True:
             userResponse = input("Enter here: ")
             if userResponse in validIndicesAsStr:
-                selectedIndex = int(userResponse)
+                specifiedPlayer = userResponse
                 break
             print("Response was not recognized, please try again.")
         print()
 
     # Convert selections to the correct player class.
-    match selectedIndex:
-        case 0:
-            gamePlayer = player.ManualPlayer
-        case 1:
-            gamePlayer = player.RandomPlayer
-        case 2:
-            gamePlayer = player.LargestFirstPlayer
-        case 3:
-            gamePlayer = player.LargePreserveLowPlayer
-        case 4:
-            gamePlayer = player.MostThenSmall
-        case 5:
-            gamePlayer = player.MostThenLarge
-        case _:
-            raise Exception("Unsupported player was selected.")
+    try:
+        gamePlayer = PLAYER_TYPES[specifiedPlayer]
+    except:
+        raise Exception(f"Unsupported player was selected: {specifiedPlayer}.")
         
     return gamePlayer
 
@@ -151,7 +138,7 @@ def iterate(**kwargs) -> int:
     return 0
 
 def run(**kwargs) -> int:
-    """Run continuous games until a successful game is reached.
+    """Run a specified player for a full number of iterations and tracking results.
 
     :param **kwargs: Command line arguments
     :type: dict
@@ -168,7 +155,7 @@ def run(**kwargs) -> int:
     print(f"Running {iterations} games...")
     totalScore = 0
     perfectGames = 0
-    for game in tqdm.tqdm(runGameIterator(playerClass, limit = iterations)):
+    for game in tqdm.tqdm(runGameIterator(playerClass, limit = iterations), total = iterations):
         totalScore += game.score
         if game.score == 0:
             perfectGames += 1
@@ -186,6 +173,60 @@ def run(**kwargs) -> int:
     # Return once complete.
     return 0
 
+def compare(**kwargs) -> int:
+    """Run each non-manual player and compare.
+
+    :param **kwargs: Command line arguments
+    :type: dict
+    :return: Return code
+    :rtype: int
+    """
+    # Get the # of iterations from provided args.
+    iterations = kwargs.get("number", DEFAULT_ITERATIONS)
+
+    # Initialize player fields.
+    totalScoreDict = {}
+    perfectGamesDict = {}
+    for playerName in PLAYER_TYPES.keys():
+        if playerName == "manual":
+            continue
+        totalScoreDict[playerName] = 0
+        perfectGamesDict[playerName] = 0
+
+    # Iterate over all player types and respective classes.
+    print("Running games for all player types...")
+    print()
+    for playerName, playerClass in PLAYER_TYPES.items():
+        # If this player is manual, skip it.
+        if playerName == "manual":
+            continue
+            
+        # Run games with the current player for all iterations.
+        print(f"Running player {playerClass.__name__}")
+        for game in tqdm.tqdm(runGameIterator(playerClass, limit = iterations), total = iterations):
+            totalScoreDict[playerName] += game.score
+            if game.score == 0:
+                perfectGamesDict[playerName] += 1
+
+    # Once complete, print table of results.
+    print("Runs complete!")
+    print()
+    COLUMNS = [ "Player", "Avg. Score", "Perfect Games", "Perfect Game %" ]
+    print(f"{COLUMNS[0]:<25} {COLUMNS[1]:<25} {COLUMNS[2]:<25} {COLUMNS[3]:<25}")
+    print("-" * 110)
+    for playerName in totalScoreDict.keys():
+        # Determine player stats + format.
+        avgScore = totalScoreDict[playerName] / iterations
+        avgScoreAsStr = f"{avgScore:.2f}"
+        perfGameCount = perfectGamesDict[playerName]
+        perfGamePercent = (perfGameCount / iterations) * 100
+        perfGamePercentAsStr = f"{perfGamePercent:.2f}" + "%"
+
+        # Print new table row.
+        print(f"{playerName:<25} {avgScoreAsStr:<25} {str(perfGameCount):<25} {perfGamePercentAsStr:<25}")
+
+    # Return once complete.
+    return 0
 
 # MAIN ENTRY.
 def main() -> int:
@@ -206,9 +247,13 @@ def main() -> int:
     iterParser = subparsers.add_parser(name = "iterate", help = "Run continuously until a maximum score is reached.")
     iterParser.set_defaults(func = iterate)
     
-    iterParser = subparsers.add_parser(name = "run", help = "Run a single player for a specified number of iterations.")
-    iterParser.add_argument("-n", "--number", action = "store", type = int, default = DEFAULT_ITERATIONS, help = "Number of iterations.")
-    iterParser.set_defaults(func = run)
+    runParser = subparsers.add_parser(name = "run", help = "Run a single player for a specified number of iterations.")
+    runParser.add_argument("-n", "--number", action = "store", type = int, default = DEFAULT_ITERATIONS, help = "Number of iterations.")
+    runParser.set_defaults(func = run)
+    
+    compareParser = subparsers.add_parser(name = "compare", help = "Run every non-manual player type for a number of iterations, then compare.")
+    compareParser.add_argument("-n", "--number", action = "store", type = int, default = DEFAULT_ITERATIONS, help = "Number of iterations.")
+    compareParser.set_defaults(func = compare)
 
     # START RUN.
     # Call user selections as a function call, then return results.

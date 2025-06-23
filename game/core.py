@@ -6,25 +6,9 @@
 
 # NATIVE IMPORTS.
 from random import randint
-import itertools
 # THIRD-PARTY IMPORTS.
 # LOCAL IMPORTS.
-
-
-# CONSTANTS.
-ROLL_MOVES_CACHE = {
-    2:  [[2]],
-    3:  [[3], [1, 2]],
-    4:  [[4], [1, 3]],
-    5:  [[5], [1, 4], [2, 3]],
-    6:  [[6], [1, 5], [2, 4], [1, 2, 3]],
-    7:  [[7], [1, 6], [2, 5], [3, 4], [1, 2, 4]],
-    8:  [[8], [1, 7], [2, 6], [3, 5], [1, 2, 5], [1, 3, 4]],
-    9:  [[9], [1, 8], [2, 7], [3, 6], [4, 5], [1, 2, 6], [1, 3, 5], [2, 3, 4]],
-    10: [[1, 9], [2, 8], [3, 7], [4, 6], [1, 2, 7], [1, 3, 6], [1, 4, 5], [2, 3, 5], [1, 2, 3, 4]],
-    11: [[2, 9], [3, 8], [4, 7], [5, 6], [1, 2, 8], [1, 3, 7], [1, 4, 6], [2, 3, 6], [2, 4, 5], [1, 2, 3, 5]],
-    12: [[3, 9], [4, 8], [5, 7], [1, 2, 9], [1, 3, 8], [1, 4, 7], [1, 5, 6], [2, 3, 7], [2, 4, 6], [3, 4, 5], [1, 2, 3, 6], [1, 2, 4, 5]]
-}
+from .cache import BASIC_ROLL_CACHE, FULL_ROLL_CACHE
 
 
 # CLASSES.
@@ -33,7 +17,7 @@ class GameInstance():
         self._isRunning: bool = False
         self._isFinished: bool = False
         self._tileCount: int = tileCount
-        self._tiles: list[bool] = []
+        self._tiles: list[int] = []
         self._rollHistory: list[int] = []
         self._moveHistory: list[list[int]] = []
         self._lastRoll: tuple[int, int] = (-1, -1)
@@ -52,7 +36,7 @@ class GameInstance():
         return len(self._rollHistory)
     
     @property
-    def tiles(self) -> list[bool]:
+    def tiles(self) -> list[int]:
         return self._tiles
     
     @property
@@ -77,27 +61,50 @@ class GameInstance():
         
     @property
     def score(self) -> int:
-        return sum(index + 1 for index, tileIsFlipped in enumerate(self.tiles) if not tileIsFlipped)
+        return sum(self.tiles)
     
     def start(self) -> list[list[int]]:
         if self.running:
             raise Exception("Game cannot be started twice.")
 
         # Set up the available tiles based on the configured tile count.
-        self._tiles = [ False ] * self._tileCount
+        self._tiles = [ value for value in range(1, self._tileCount + 1) ]
         self._isRunning = True
 
         # MAKE FIRST MOVE.
         # Handles only the 'roll' portion of a turn and returns result
         return self._makeRoll()
-
-    def tileValues(self) -> list[int]:
-        tileList = []
-        for tileIndex, tileIsUsed in enumerate(self._tiles):
-            if not tileIsUsed:
-                tileList.append(tileIndex + 1)
-
-        return tileList
+        
+    def summaryize(self) -> str:
+        if not self.running:
+            return (
+                f"--- GAME INSTANCE 0x{id(self)} ---\n"
+                f"Status:   Not yet started.\n"
+                f"Round(s): 0"
+            )
+        
+        elif self.running and not self.finished:
+            return (
+                f"--- GAME INSTANCE 0x{id(self)} ---\n"
+                f"Status:    Running\n"
+                f"Round(s):  {self.rollCount}\n"
+                f"\n"
+                f"Remaining: {', '.join(str(tile) for tile in self.tiles)}\n"
+                f"Last Roll: {self.lastRoll[0]} + {self.lastRoll[1]} (sum of {self.lastRollTotal})\n"
+                f"Moves:     {', '.join(str(move) for move in self.moveHistory)}"
+            )
+        
+        else:
+            return (
+                f"--- GAME INSTANCE 0x{id(self)} ---\n"
+                f"Status:    Finished\n"
+                f"Score:     {self.score}\n"
+                f"Round(s):  {self.rollCount}\n"
+                f"\n"
+                f"Remaining: {', '.join(str(tile) for tile in self.tiles)}\n"
+                f"Last Roll: {self.lastRoll[0]} + {self.lastRoll[1]} (sum of {self.lastRollTotal})\n"
+                f"Moves:     {', '.join(str(move) for move in self.moveHistory)}"
+            )
     
     def turn(self, move: list[int]) -> list[list[int]]:
         # Start the turn by applying the prior move.
@@ -126,50 +133,20 @@ class GameInstance():
             self._isFinished = True
             return []
         
-    def summaryize(self) -> str:
-        if not self.running:
-            return (
-                f"--- GAME INSTANCE 0x{id(self)} ---\n"
-                f"Status:   Not yet started.\n"
-                f"Round(s): 0"
-            )
-        
-        elif self.running and not self.finished:
-            return (
-                f"--- GAME INSTANCE 0x{id(self)} ---\n"
-                f"Status:    Running\n"
-                f"Round(s):  {self.rollCount}\n"
-                f"\n"
-                f"Remaining: {', '.join(str(tile) for tile in self.tileValues())}\n"
-                f"Last Roll: {self.lastRoll[0]} + {self.lastRoll[1]} (sum of {self.lastRollTotal})\n"
-                f"Moves:     {', '.join(str(move) for move in self.moveHistory)}"
-            )
-        
-        else:
-            return (
-                f"--- GAME INSTANCE 0x{id(self)} ---\n"
-                f"Status:    Finished\n"
-                f"Score:     {self.score}\n"
-                f"Round(s):  {self.rollCount}\n"
-                f"\n"
-                f"Remaining: {', '.join(str(tile) for tile in self.tileValues())}\n"
-                f"Last Roll: {self.lastRoll[0]} + {self.lastRoll[1]} (sum of {self.lastRollTotal})\n"
-                f"Moves:     {', '.join(str(move) for move in self.moveHistory)}"
-            )
-        
     def _flipTiles(self, move: list[int]) -> None:
         if move not in self.validMoves:
             raise Exception(f"Move {move} not a possible move from previous roll {self._rollHistory[-1]}")
         
         for moveTile in move:
-            if self._tiles[moveTile - 1] == True:
+            try:
+                self._tiles.remove(moveTile)
+            except:
                 raise Exception(f"Cannot flip tile {moveTile} that has already been flipped!")
-            self._tiles[moveTile - 1] = True
 
         self._moveHistory.append(move)
         
         # Check if the game is complete and flag if so.
-        gameIsComplete = all(self._tiles)
+        gameIsComplete = (len(self.tiles) == 0)
         if gameIsComplete:
             self._isFinished = True
         return
@@ -180,13 +157,14 @@ class GameInstance():
         return dice1 + dice2
 
     def _getValidMovesForRoll(self, roll: int) -> list[list[int]]:
-        # Convert the roll # into a list of all possible moves, given a full board.
-        moves = ROLL_MOVES_CACHE.get(roll, [])
+        # Attempt to directly read the move list from the full cache.
+        tileListAsStr = map(str, self.tiles)
+        tilesAsStr = "".join(tileListAsStr)
+        try:
+            moves = FULL_ROLL_CACHE[f"{roll}+{tilesAsStr}"]
+        except:
+            raise Exception(f"Missing cache entry for roll {roll}, tiles {tilesAsStr}")
 
-        # Get the current list of available tiles. Filter out moves based what tiles are available.
-        tileSet = set(self.tileValues())
-        moves = [ move for move in moves if set(move).issubset(tileSet)]
-        
         # Return the final list of combinations.
         return moves
 
