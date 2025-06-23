@@ -7,6 +7,7 @@
 import argparse
 from typing import Generator, Type
 # THIRD-PARTY IMPORTS.
+import tqdm
 # LOCAL IMPORTS.
 import player
 import game.core as core
@@ -15,6 +16,14 @@ import game.core as core
 
 # CONSTANTS.
 DEFAULT_ITERATIONS: int = 100000
+PLAYER_TYPES: list[str] = [
+    "manual",
+    "random",
+    "largest-first",
+    "largest-preserve-low",
+    "most-then-small",
+    "most-then-large"
+]
 
 
 # FUNCTIONS.
@@ -48,32 +57,48 @@ def runGameIterator(playerClass: Type[player.PlayerInterface], limit: int | None
         yield runGame(runPlayer, **gameKwargs)
         iteration += 1
 
-def selectPlayer() -> Type[player.PlayerInterface]:
-    # Prompt the user to select a player from the available options.
-    PLAYER_TYPES: list[str] = [ "manual", "random" ]
-    print("Please select a player.")
-    print("Available options:")
-    for playerIndex, playerName in enumerate(PLAYER_TYPES):
-        print(f"  [{playerIndex}] {playerName}")
-    print()
+def selectPlayer(specifiedPlayer: str | None = None) -> Type[player.PlayerInterface]:
+    # If given from function inputs, verify specified player.
+    if specifiedPlayer != None:
+        # Make sure that the given player matches an expected value.
+        if specifiedPlayer not in PLAYER_TYPES:
+            raise Exception(f"Specified player name {specifiedPlayer} does not match valid options: {', '.join(PLAYER_TYPES)}")
+        selectedIndex = PLAYER_TYPES.index(specifiedPlayer)
 
-    validIndicesAsStr = [ str(index) for index in range(0, len(PLAYER_TYPES)) ]
-    selectedIndex = -1
-    while True:
-        userResponse = input("Enter here: ")
-        if userResponse in validIndicesAsStr:
-            selectedIndex = int(userResponse)
-            break
-        print("Response was not recognized, please try again.")
-    print()
+    # Otherwise, prompt the user to select a player from the available options.
+    else:
+        print("Please select a player.")
+        print("Available options:")
+        for playerIndex, playerName in enumerate(PLAYER_TYPES):
+            print(f"  [{playerIndex}] {playerName}")
+        print()
 
+        validIndicesAsStr = [ str(index) for index in range(0, len(PLAYER_TYPES)) ]
+        selectedIndex = -1
+        while True:
+            userResponse = input("Enter here: ")
+            if userResponse in validIndicesAsStr:
+                selectedIndex = int(userResponse)
+                break
+            print("Response was not recognized, please try again.")
+        print()
+
+    # Convert selections to the correct player class.
     match selectedIndex:
         case 0:
             gamePlayer = player.ManualPlayer
         case 1:
             gamePlayer = player.RandomPlayer
+        case 2:
+            gamePlayer = player.LargestFirstPlayer
+        case 3:
+            gamePlayer = player.LargePreserveLowPlayer
+        case 4:
+            gamePlayer = player.MostThenSmall
+        case 5:
+            gamePlayer = player.MostThenLarge
         case _:
-            raise Exception("Invalid player was selected.")
+            raise Exception("Unsupported player was selected.")
         
     return gamePlayer
 
@@ -86,7 +111,7 @@ def simple(**kwargs) -> int:
     :rtype: int
     """
     # Run a single game and store the resulting game object.
-    playerClass = selectPlayer()
+    playerClass = selectPlayer(kwargs.get("player", None))
     gamePlayer = playerClass()
     game = runGame(gamePlayer)
 
@@ -107,7 +132,7 @@ def iterate(**kwargs) -> int:
     :rtype: int
     """
     # Select the player type to use.
-    playerClass = selectPlayer()
+    playerClass = selectPlayer(kwargs.get("player", None))
 
     # Start an iterator for continuous games.
     print("Starting games...")
@@ -137,13 +162,13 @@ def run(**kwargs) -> int:
     iterations = kwargs.get("number", DEFAULT_ITERATIONS)
 
     # Propmt the user to select the player they want to use.
-    playerClass = selectPlayer()
+    playerClass = selectPlayer(kwargs.get("player", None))
 
     # Start iterating and store all results.
     print(f"Running {iterations} games...")
     totalScore = 0
     perfectGames = 0
-    for game in runGameIterator(playerClass, limit = iterations):
+    for game in tqdm.tqdm(runGameIterator(playerClass, limit = iterations)):
         totalScore += game.score
         if game.score == 0:
             perfectGames += 1
@@ -168,6 +193,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description = "Analyze various players/strategies for the 'Shut the Box' dice game."
     )
+
+    # Add any global arguments here.
+    parser.add_argument("-p", "--player", action = "store", default = None, help = "Select a player by name. Skips user prompts.")
 
     # Add a single subparser for each different run mode.
     subparsers = parser.add_subparsers(help = "Selected run mode.", required = True)

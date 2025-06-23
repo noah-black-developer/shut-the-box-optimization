@@ -11,6 +11,22 @@ import itertools
 # LOCAL IMPORTS.
 
 
+# CONSTANTS.
+ROLL_MOVES_CACHE = {
+    2:  [[2]],
+    3:  [[3], [1, 2]],
+    4:  [[4], [1, 3]],
+    5:  [[5], [1, 4], [2, 3]],
+    6:  [[6], [1, 5], [2, 4], [1, 2, 3]],
+    7:  [[7], [1, 6], [2, 5], [3, 4], [1, 2, 4]],
+    8:  [[8], [1, 7], [2, 6], [3, 5], [1, 2, 5], [1, 3, 4]],
+    9:  [[9], [1, 8], [2, 7], [3, 6], [4, 5], [1, 2, 6], [1, 3, 5], [2, 3, 4]],
+    10: [[1, 9], [2, 8], [3, 7], [4, 6], [1, 2, 7], [1, 3, 6], [1, 4, 5], [2, 3, 5], [1, 2, 3, 4]],
+    11: [[2, 9], [3, 8], [4, 7], [5, 6], [1, 2, 8], [1, 3, 7], [1, 4, 6], [2, 3, 6], [2, 4, 5], [1, 2, 3, 5]],
+    12: [[3, 9], [4, 8], [5, 7], [1, 2, 9], [1, 3, 8], [1, 4, 7], [1, 5, 6], [2, 3, 7], [2, 4, 6], [3, 4, 5], [1, 2, 3, 6], [1, 2, 4, 5]]
+}
+
+
 # CLASSES.
 class GameInstance():
     def __init__(self, tileCount: int = 9) -> None:
@@ -164,22 +180,15 @@ class GameInstance():
         return dice1 + dice2
 
     def _getValidMovesForRoll(self, roll: int) -> list[list[int]]:
-        # Get the current list of available tiles.
-        tileList = self.tileValues()
+        # Convert the roll # into a list of all possible moves, given a full board.
+        moves = ROLL_MOVES_CACHE.get(roll, [])
 
-        # Remove any tiles from the list that are greater in value than the roll.
-        tileList = [ tile for tile in tileList if tile <= roll ]
-
-        # Get all combinations of numbers in the tile list.
-        # Restricts the length of combos to the max # on a full board.
-        tileComboList = []
-        for comboLen in range(1, 5):
-            combosOfLengthList = itertools.combinations(tileList, comboLen)
-            tileComboList.extend([ combo for combo in combosOfLengthList if sum(combo) == roll ])
-
+        # Get the current list of available tiles. Filter out moves based what tiles are available.
+        tileSet = set(self.tileValues())
+        moves = [ move for move in moves if set(move).issubset(tileSet)]
+        
         # Return the final list of combinations.
-        # Make sure to convert all of the values to list representations, instead of tuples returned by combo functions.
-        return [ list(combo) for combo in tileComboList ] 
+        return moves
 
 
 # MAIN ENTRY.
